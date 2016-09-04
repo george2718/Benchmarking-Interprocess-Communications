@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <time.h>
 #include <sys/time.h>
+#include </usr/include/linux/fcntl.h>
+#include <unistd.h>
+#define FILE_PATH "/home/george/Documents/C/results/pipe64K.txt"
 
 inline uint64_t rdtsc() {
     uint32_t lo, hi;
@@ -32,27 +35,35 @@ main(int argc, char **argv)
 	int fd2[2];
 
     //char *data = "hello... this is sample data";
-    char buf[10250];
+    char buf[65536];
     int n2;
 
     FILE *fp;           //read file
-    char str[6000];
-    char string[6010];
+    char str[65536];
+    char string[65536];
     fp = fopen("512KB.txt" , "r");
     if(fp == NULL) 
     {
       perror("Error opening file");
       return(-1);
     }
-    if( fgets (str, 6000, fp)!=NULL ) 
+    if( fgets (str, 65536, fp)!=NULL ) 
     {
-        memcpy(string, str, 6000);
-        string[6000] = '\0'; 
+        memcpy(string, str, 65536);
+        string[65536] = '\0'; 
         //printf("%s\n", string);
     }
     fclose(fp);
 
     char *data = string;
+
+    FILE *fp2;		//write to file
+    if( (fp2=fopen(FILE_PATH,"wt+")) == NULL ){
+        perror(FILE_PATH);
+        exit(1);
+    }
+    int i = 0;
+    for(i; i<100; i++){
 
 	pipe(fd1);
 	pipe(fd2);
@@ -67,16 +78,16 @@ main(int argc, char **argv)
 
 	default: // parent
 		while ((pid = wait(&status)) != -1)
-            fprintf(stderr, "process %d exits\n", pid);
+            ;
 
 	    close(fd2[1]);	
-	    if ((n2 = read(fd2[0], buf, 1024)) >= 0) {
+	    if ((n2 = read(fd2[0], buf, 65536)) >= 0) {
 		    buf[n2] = 0;	// terminate string 
-		    //printf("read %d bytes from the pipe: \"%s\"\n", n2, buf);
-            printf("read %d bytes from the pipe: \"\"\n", n2);
+		    
+            printf("read %d bytes from the pipe2 \n", n2);
 	    }	
 	    else
-		    perror("read");
+		perror("read");
 
 		break;
 
@@ -87,8 +98,13 @@ main(int argc, char **argv)
 
 	y = rdtsc(); //end counting time   
 	printf("total cycles for round trip: %lld\n",y-x);
-    long double time = (long double)(y-x) / 5200000000;
-	printf("time spend for half of bi-direction: %Lf\n",time);
+        long double time = (long double)(y-x) / 5200000000;
+	// round-trip
+	printf("time spend (half of bi-direction): %Lf\n",time);
+	fprintf(fp2, "%Lf\n",time);
+	fflush(fp2);
+    }
+	fclose(fp2);
 	exit(0);
 }
 
@@ -106,10 +122,10 @@ runpipe(int fd1[], int fd2[], char *data, char buf[])
 	    write(fd2[1], data, strlen(data));
 
 		close(fd1[1]);	
-		if ((n1 = read(fd1[0], buf, 1024)) >= 0) {
+		if ((n1 = read(fd1[0], buf, 65536)) >= 0) {
 			buf[n1] = 0;	/* terminate string */
-			//printf("read %d bytes from the pipe: \"%s\"\n", n1, buf);
-            printf("read %d bytes from the pipe: \"\"\n", n1);
+		
+            printf("read %d bytes from the pipe1\n", n1);
 		}	
 		else
 			perror("read");
